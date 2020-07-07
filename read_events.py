@@ -90,7 +90,7 @@ def readEvents(device):
                     threading.Thread(target=playSound, args=(device,)).start()
                 if code[1] == "ENTER":
                     print(f'{device}: {val}')
-                    handleRead(device, val)                   
+                    threading.Thread(target=handleRead, args=(device, val)).start()                   
                     val = ""
                 elif code[1] == "SEMICOLON":
                     val += ";"
