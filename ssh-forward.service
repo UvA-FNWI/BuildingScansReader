@@ -1,0 +1,15 @@
+[Unit]
+Description=SSH tunnel
+Requires=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -R POORT:localhost:22 scanner@ENDPOINT
+User=pi
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
