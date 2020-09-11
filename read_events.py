@@ -36,6 +36,7 @@ def handleRead(device, val):
     isExit = (device == 1)
 
     playSound(1 if isExit else 0) # Play sound
+    print("Incheck" if not isExit else "Uitcheck")
 
     writeData(hash, isExit, isStudent)
 
@@ -64,7 +65,6 @@ def readEvents(device):
             if data.keystate == 1:
                 # Enter has been pressed; this means done reading pass.
                 if code[1] == "ENTER":
-                    print(f'{device}: {val}')
                     threading.Thread(target=handleRead, args=(device, val)).start()
                     val = ""
                 # When semicolon gets detected, it means a substring of the input
