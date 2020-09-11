@@ -25,8 +25,8 @@ done
 
 if [[ -e "/etc/systemd/system/ssh-forward.service" ]]; then
     echo "Updating ssh-forward.service..."
-    NEWPORT=$(awk 'match($0, /([[:alnum:]]+):localhost:22/, fields) { print fields[1]; }' /etc/systemd/system/ssh-forward.service)
-    TUNNEL_ENDPOINT=$(awk 'match($0, /scanner@([a-z.]+)/, fields) { print fields[0]; }' /etc/systemd/system/ssh-forwad.service)
+    NEWPORT=$(perl -n -e '/([A-Za-z0-9]+):localhost:22/ && print $1' /etc/systemd/system/ssh-forward.service)
+    TUNNEL_ENDPOINT=$(perl -n -e '/scanner@([a-z.]+)/ && print $1' /etc/systemd/system/ssh-forward.service)
     sudo bash -c "sed 's/POORT/$NEWPORT/;s/ENDPOINT/$TUNNEL_ENDPOINT/' ssh-forward.service >/etc/systemd/system/ssh-forward.service"
     sudo systemctl daemon-reload
     sudo systemctl restart ssh-forward.service
