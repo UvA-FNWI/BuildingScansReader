@@ -8,11 +8,10 @@ if [[ -z $HASEDUROAM ]]; then
     read WIFI_PASSWORD
 
     sudo bash -c "sed 's/IDENTITY/$WIFI_IDENTITY/;s/PASSWORD/$WIFI_PASSWORD/' network_template.conf >>/etc/wpa_supplicant/wpa_supplicant.conf"
+    sudo systemctl restart networking.service
+    sudo systemctl restart wpa_supplicant.service
+    sudo systemctl restart dhcpcd.service
 fi
-
-sudo systemctl restart networking.service
-sudo systemctl restart wpa_supplicant.service
-sudo systemctl restart dhcpcd.service
 
 echo "Waiting for a route to become available..."
 while :; do
@@ -70,4 +69,4 @@ read SCANNER_ENDPOINT
 echo -n "Zone for scanner (C or G): "
 read SCANNER_ZONE
 
-sed -i -e "s/ENDPOINT/$SCANNER_ENDPOINT/;s/ZONE/$SCANNER_ZONE/" read_events.py
+sed -i -e "s|ENDPOINT|$SCANNER_ENDPOINT|;s|ZONE|$SCANNER_ZONE|" read_events.py
