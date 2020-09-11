@@ -1,3 +1,4 @@
+#!/usr/bin/python3 -u
 from evdev import InputDevice, categorize, ecodes
 import threading
 import requests
