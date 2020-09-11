@@ -17,7 +17,7 @@ try:
     pygame.mixer.init()
     dings = [pygame.mixer.Sound("ding1.wav"), pygame.mixer.Sound("ding2.wav")]
 except:
-    traceback.print_exc()
+    pass
 
 
 zone = "ZONE" # "G" or "C"
@@ -27,7 +27,7 @@ def playSound(event):
     try:
         dings[event].play()
     except:
-        traceback.print_exc()
+        pass
 
 def handleRead(device, val):
     hash = hashlib.sha224(f'{val}'.encode('utf-8')).hexdigest()
