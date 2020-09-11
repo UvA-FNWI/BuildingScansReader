@@ -70,4 +70,4 @@ read SCANNER_ENDPOINT
 echo -n "Zone for scanner (C or G): "
 read SCANNER_ZONE
 
-sed -i -e 's/ENDPOINT/$SCANNER_ENDPOINT/;s/ZONE/$SCANNER_ZONE/' read_events.py
+sed -i -e "s/ENDPOINT/$SCANNER_ENDPOINT/;s/ZONE/$SCANNER_ZONE/" read_events.py
