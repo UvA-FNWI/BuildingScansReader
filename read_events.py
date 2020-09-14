@@ -18,7 +18,7 @@ try:
     pygame.mixer.init()
     dings = [pygame.mixer.Sound("ding1.wav"), pygame.mixer.Sound("ding2.wav")]
 except:
-    pass
+    print("Failed to load sound")
 
 
 zone = "ZONE" # "G" or "C"
@@ -28,14 +28,13 @@ def playSound(event):
     try:
         dings[event].play()
     except:
-        pass
+        print("Failed to play sound")
 
 def handleRead(device, val):
     hash = hashlib.sha224(f'{val}'.encode('utf-8')).hexdigest()
     isStudent = val.split(';')[-1].startswith('1')
     isExit = (device == 1)
 
-    playSound(1 if isExit else 0) # Play sound
     print("Incheck" if not isExit else "Uitcheck")
 
     writeData(hash, isExit, isStudent)
@@ -64,6 +63,8 @@ def readEvents(device):
             code = data.keycode.split('_')
             if data.keystate == 1:
                 # Enter has been pressed; this means done reading pass.
+                if val == "":
+                    threading.Thread(target=playSound, args=(device,)).start()
                 if code[1] == "ENTER":
                     threading.Thread(target=handleRead, args=(device, val)).start()
                     val = ""
