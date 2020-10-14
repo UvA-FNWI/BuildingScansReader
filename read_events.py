@@ -53,7 +53,7 @@ def writeData(hash, isExit, isStudent):
         })
         print(r)
         while request_queue:
-            (hash, isExit, isStudent, zone) = request_queue.popleft()
+            (hash, isExit, isStudent) = request_queue.popleft()
             r = requests.post(endpoint, json={
                 "Hash": hash,
                 "IsExit": isExit,
@@ -65,7 +65,7 @@ def writeData(hash, isExit, isStudent):
     except:
         print("Error writing data to API, adding to queue and restarting network:")
         traceback.print_exc()
-        request_queue.append((hash, isExit, isStudent, zone))
+        request_queue.append((hash, isExit, isStudent))
         run_ifdown_ifup()
 
 def run_ifdown_ifup():
