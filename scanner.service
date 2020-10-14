@@ -5,6 +5,7 @@ After=network-online.target
 
 [Service]
 Type=simple
+WorkingDirectory=/home/pi/BuildingScansReader/
 ExecStart=/home/pi/BuildingScansReader/read_events.py
 User=pi
 # Use process (instead of default control-group) so that the wpa_supplicant etc
