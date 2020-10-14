@@ -11,11 +11,11 @@ import sys
 from datetime import datetime
 from glob import glob
 import traceback
-from collections import deque
+import queue
 
 dings = []
 
-request_queue = deque()
+request_queue = queue.Queue()
 
 try:
     pygame.mixer.init()
@@ -52,8 +52,11 @@ def writeData(hash, isExit, isStudent):
             "Zone": zone
         })
         print(r)
-        while request_queue:
-            (hash, isExit, isStudent) = request_queue.popleft()
+        while not request_queue.empty():
+            try:
+                (hash, isExit, isStudent) = request_queue.get_nowait()
+            except queue.Empty:
+                break
             r = requests.post(endpoint, json={
                 "Hash": hash,
                 "IsExit": isExit,
@@ -65,7 +68,7 @@ def writeData(hash, isExit, isStudent):
     except:
         print("Error writing data to API, adding to queue and restarting network:")
         traceback.print_exc()
-        request_queue.append((hash, isExit, isStudent))
+        request_queue.put((hash, isExit, isStudent))
         run_ifdown_ifup()
 
 def run_ifdown_ifup():
