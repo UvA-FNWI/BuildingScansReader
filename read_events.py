@@ -42,16 +42,8 @@ def handleRead(device, val):
 
     writeData(hash, isExit, isStudent)
 
-def writeData(hash, isExit, isStudent):
-    global settings
+def handle_request_queue():
     try:
-        r = requests.post(endpoint, json={
-            "Hash": hash,
-            "IsExit": isExit,
-            "IsStudent": isStudent,
-            "Zone": zone
-        })
-        print(r)
         while not request_queue.empty():
             try:
                 (hash, isExit, isStudent) = request_queue.get_nowait()
@@ -71,9 +63,29 @@ def writeData(hash, isExit, isStudent):
         request_queue.put((hash, isExit, isStudent))
         run_ifdown_ifup()
 
+def writeData(hash, isExit, isStudent):
+    global settings
+    try:
+        r = requests.post(endpoint, json={
+            "Hash": hash,
+            "IsExit": isExit,
+            "IsStudent": isStudent,
+            "Zone": zone
+        })
+        print(r)
+        handle_request_queue()
+    except:
+        print("Error writing data to API, adding to queue and restarting network:")
+        traceback.print_exc()
+        request_queue.put((hash, isExit, isStudent))
+        run_ifdown_ifup()
+
 def run_ifdown_ifup():
     os.system('sudo ifdown wlan0')
-    os.system('sudo ifup wlan0')
+    os.system('while [ -n "$(pgrep wpa_supplicant)" ]; do sleep 0.5; done && sudo ifup wlan0')
+    os.system('/lib/ifupdown/wait-online.sh')
+    handle_request_queue()
+
 
 def readEvents(device):
     dev = InputDevice(f"/dev/input/event{device}")
