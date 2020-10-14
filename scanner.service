@@ -1,10 +1,7 @@
 [Unit]
 Description=Scanners Incheck UvA-gebouw
-# This is a bit strange, but ssh-forward.service doesn't succeed until a network
-# is active. Requiring network-online.target doesn't quite seem to work for that.
-# (probably because the Pi doesn't use anything fancy like NetworkManager)
-Requires=ssh-forward.service
-After=ssh-forward.service
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
