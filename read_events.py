@@ -91,25 +91,29 @@ def readEvents(device):
     dev = InputDevice(f"/dev/input/event{device}")
     val = ""
 
-    for event in dev.read_loop():
-        if event.type == ecodes.EV_KEY:
-            data = categorize(event)
-            code = data.keycode.split('_')
-            if data.keystate == 1:
-                # Enter has been pressed; this means done reading pass.
-                if val == "":
-                    threading.Thread(target=playSound, args=(device,)).start()
-                if code[1] == "ENTER":
-                    threading.Thread(target=handleRead, args=(device, val)).start()
-                    val = ""
-                # When semicolon gets detected, it means a substring of the input
-                # is done being parsed and the next substring can be parsed.
-                elif code[1] == "SEMICOLON":
-                    val += ";"
-                # Finally, if the character is neither enter nor semicolon,
-                # it is a regular input value character.
-                elif len(code[1]) == 1:
-                    val += code[1]
+    try:
+        for event in dev.read_loop():
+            if event.type == ecodes.EV_KEY:
+                data = categorize(event)
+                code = data.keycode.split('_')
+                if data.keystate == 1:
+                    # Enter has been pressed; this means done reading pass.
+                    if val == "":
+                        threading.Thread(target=playSound, args=(device,), daemon=True).start()
+                    if code[1] == "ENTER":
+                        threading.Thread(target=handleRead, args=(device, val), daemon=True).start()
+                        val = ""
+                    # When semicolon gets detected, it means a substring of the input
+                    # is done being parsed and the next substring can be parsed.
+                    elif code[1] == "SEMICOLON":
+                        val += ";"
+                    # Finally, if the character is neither enter nor semicolon,
+                    # it is a regular input value character.
+                    elif len(code[1]) == 1:
+                        val += code[1]
+    except OSError as e:
+        print(f"Scanners probably disconnected, exiting... (OSError: {e})")
+        sys.exit()
 
 
 readerType1 = glob('/dev/input/by-id/*OMNIKEY*')
