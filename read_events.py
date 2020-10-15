@@ -5,7 +5,6 @@ import requests
 import hashlib
 import random
 import os
-import jsonpickle
 import pygame
 import sys
 from datetime import datetime
