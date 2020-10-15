@@ -1,5 +1,6 @@
 #!/usr/bin/python3 -u
 from evdev import InputDevice, categorize, ecodes
+from typing import List, Deque, Tuple
 import threading
 import requests
 import hashlib
@@ -10,11 +11,15 @@ import sys
 from datetime import datetime
 from glob import glob
 import traceback
-import queue
+from collections import deque
 
-dings = []
+dings: List[pygame.mixer.Sound] = []
 
-request_queue = queue.Queue()
+# use a deque for the request queue, along with a condition variable.
+# deque pop/append are thread-safe/atomic, but there's no blocking support,
+# so we need a separate condition variable for that.
+request_queue: Deque[Tuple[str, bool, bool]] = deque()
+request_delta_cond = threading.Condition()
 
 try:
     pygame.mixer.init()
@@ -26,44 +31,39 @@ except:
 zone = "ZONE" # "G" or "C"
 endpoint = "ENDPOINT"
 
-def playSound(event):
+def playSound(event: int):
     try:
         dings[event].play()
     except:
         print("Failed to play sound")
 
-def handleRead(device, val):
+
+def handleRead(device: int, val: str):
     hash = hashlib.sha224(f'{val}'.encode('utf-8')).hexdigest()
     isStudent = val.split(';')[-1].startswith('1')
     isExit = (device == 1)
 
     print("Incheck" if not isExit else "Uitcheck")
 
-    writeData(hash, isExit, isStudent)
+    with request_delta_cond:
+        request_queue.append((hash, isExit, isStudent))
+        request_delta_cond.notify()
 
-def handle_request_queue():
-    try:
-        while not request_queue.empty():
-            try:
-                (hash, isExit, isStudent) = request_queue.get_nowait()
-            except queue.Empty:
-                break
-            r = requests.post(endpoint, json={
-                "Hash": hash,
-                "IsExit": isExit,
-                "IsStudent": isStudent,
-                "Zone": zone
-            })
 
-            print(r)
-    except:
-        print("Error writing data to API, adding to queue and restarting network:")
-        traceback.print_exc()
-        request_queue.put((hash, isExit, isStudent))
-        run_ifdown_ifup()
+def request_queue_process():
+    while True:
+        with request_delta_cond:
+            # wait until the request queue is non-empty
+            request_delta_cond.wait_for(lambda: request_queue)
+            # get a request
+            request = request_queue.popleft()
+        # process it
+        request_process(request)
 
-def writeData(hash, isExit, isStudent):
-    global settings
+
+def request_process(request: Tuple[str, bool, bool]):
+    (hash, isExit, isStudent) = request
+    print("Processing request in rq thread.")
     try:
         r = requests.post(endpoint, json={
             "Hash": hash,
@@ -71,22 +71,23 @@ def writeData(hash, isExit, isStudent):
             "IsStudent": isStudent,
             "Zone": zone
         })
-        print(r)
-        handle_request_queue()
-    except:
-        print("Error writing data to API, adding to queue and restarting network:")
-        traceback.print_exc()
-        request_queue.put((hash, isExit, isStudent))
+        print("Done.")
+    except requests.ConnectionError as e:
+        print(f"Error writing data to API, re-adding current request to queue and restarting network: {e}")
+        with request_delta_cond:
+            # put 'er back.
+            request_queue.appendleft((hash, isExit, isStudent))
         run_ifdown_ifup()
+
 
 def run_ifdown_ifup():
     os.system('sudo ifdown wlan0')
-    os.system('while [ -n "$(pgrep wpa_supplicant)" ]; do sleep 0.5; done && sudo ifup wlan0')
+    os.system("timeout 30 bash -c 'while [[ -n `pgrep wpa_supplicant` ]]; do sleep 0.5; done'")
+    os.system("sudo ifup wlan0")
     os.system('/lib/ifupdown/wait-online.sh')
-    handle_request_queue()
 
 
-def readEvents(device):
+def readEvents(device: int):
     dev = InputDevice(f"/dev/input/event{device}")
     val = ""
 
@@ -100,7 +101,7 @@ def readEvents(device):
                     if val == "":
                         threading.Thread(target=playSound, args=(device,), daemon=True).start()
                     if code[1] == "ENTER":
-                        threading.Thread(target=handleRead, args=(device, val), daemon=True).start()
+                        handleRead(device, val)
                         val = ""
                     # When semicolon gets detected, it means a substring of the input
                     # is done being parsed and the next substring can be parsed.
@@ -119,6 +120,9 @@ readerType1 = glob('/dev/input/by-id/*OMNIKEY*')
 readerType2 = glob('/dev/input/by-id/*NEDAP*')
 numReaders = len(readerType1 + readerType2)
 threadList = []
+
+request_queue_thread = threading.Thread(target=request_queue_process, daemon=True)
+request_queue_thread.start()
 
 for reader in range(numReaders):
     newThread = threading.Thread(target=readEvents, args=(reader,),daemon=True)
