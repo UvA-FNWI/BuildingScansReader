@@ -1,0 +1,4 @@
+{"incheck_readers": ["IDs (in /dev/input/by-id/) of incheck readers"],
+ "uitcheck_readers": ["IDs (in /dev/input/by-id/) of uitcheck readers"],
+ "zone": "C or G",
+ "endpoint": "endpoint"}

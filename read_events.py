@@ -8,6 +8,8 @@ import random
 import os
 import pygame
 import sys
+import enum
+import json
 from datetime import datetime
 from glob import glob
 import traceback
@@ -21,27 +23,31 @@ dings: List[pygame.mixer.Sound] = []
 request_queue: Deque[Tuple[str, bool, bool]] = deque()
 request_delta_cond = threading.Condition()
 
+ReaderType = enum.Enum('ReaderType', ['INCHECK', 'UITCHECK'])
+
 try:
     pygame.mixer.init()
     dings = [pygame.mixer.Sound("ding1.wav"), pygame.mixer.Sound("ding2.wav")]
 except:
     print("Failed to load sound")
 
+with open('config.json', 'r') as f:
+    config = json.load(f)
 
-zone = "ZONE" # "G" or "C"
-endpoint = "ENDPOINT"
+zone = config['zone']
+endpoint = config['endpoint']
 
-def playSound(event: int):
+def playSound(type: ReaderType):
     try:
-        dings[event].play()
+        dings[0 if type == ReaderType.UITCHECK else 1].play()
     except:
         print("Failed to play sound")
 
 
-def handleRead(device: int, val: str):
+def handleRead(type: ReaderType, val: str):
     hash = hashlib.sha224(f'{val}'.encode('utf-8')).hexdigest()
     isStudent = val.split(';')[-1].startswith('1')
-    isExit = (device == 1)
+    isExit = (type == ReaderType.UITCHECK)
 
     print("Incheck" if not isExit else "Uitcheck")
 
@@ -87,8 +93,8 @@ def run_ifdown_ifup():
     os.system('/lib/ifupdown/wait-online.sh')
 
 
-def readEvents(device: int):
-    dev = InputDevice(f"/dev/input/event{device}")
+def readEvents(device: str, type: ReaderType):
+    dev = InputDevice(f"/dev/input/by-id/{device}")
     val = ""
 
     try:
@@ -99,9 +105,9 @@ def readEvents(device: int):
                 if data.keystate == 1:
                     # Enter has been pressed; this means done reading pass.
                     if val == "":
-                        threading.Thread(target=playSound, args=(device,), daemon=True).start()
+                        threading.Thread(target=playSound, args=(type,), daemon=True).start()
                     if code[1] == "ENTER":
-                        handleRead(device, val)
+                        handleRead(type, val)
                         val = ""
                     # When semicolon gets detected, it means a substring of the input
                     # is done being parsed and the next substring can be parsed.
@@ -115,19 +121,21 @@ def readEvents(device: int):
         print(f"Scanners probably disconnected, exiting... (OSError: {e})")
         sys.exit()
 
-
-readerType1 = glob('/dev/input/by-id/*OMNIKEY*')
-readerType2 = glob('/dev/input/by-id/*NEDAP*')
-numReaders = len(readerType1 + readerType2)
 threadList = []
 
 request_queue_thread = threading.Thread(target=request_queue_process, daemon=True)
 request_queue_thread.start()
 
-for reader in range(numReaders):
-    newThread = threading.Thread(target=readEvents, args=(reader,),daemon=True)
+def startReader(name: str, type: ReaderType):
+    newThread = threading.Thread(target=readEvents, args=(name, type),daemon=True)
     newThread.start()
     threadList.append(newThread)
+
+for reader in config["incheck_readers"]:
+    startReader(reader, ReaderType.INCHECK)
+
+for reader in config["uitcheck_readers"]:
+    startReader(reader, ReaderType.UITCHECK)
 
 for thread in threadList:
     thread.join()
