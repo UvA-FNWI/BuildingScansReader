@@ -2,12 +2,15 @@
 Description=Scanners Incheck UvA-gebouw
 Wants=network-online.target
 After=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 WorkingDirectory=/home/pi/BuildingScansReader/
 ExecStart=/home/pi/BuildingScansReader/read_events.py
 User=pi
+Restart=on-failure
+RestartSec=30
 # Use process (instead of default control-group) so that the wpa_supplicant etc
 # processes in the control group are not killed.
 # Maybe this isn't ideal (they shouldn't really be in that cgroup) but it'll work.
